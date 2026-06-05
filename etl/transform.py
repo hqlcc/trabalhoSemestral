@@ -1,18 +1,11 @@
 import pandas as pd
 
 
-ATIVO_INFO = {
-    "USD": {"nome": "Dólar Americano", "categoria": "MOEDA"},
-    "EUR": {"nome": "Euro", "categoria": "MOEDA"},
-    "GBP": {"nome": "Libra Esterlina", "categoria": "MOEDA"},
-    "JPY": {"nome": "Iene Japonês", "categoria": "MOEDA"},
-    "ARS": {"nome": "Peso Argentino", "categoria": "MOEDA"},
-    "BRL": {"nome": "Real Brasileiro", "categoria": "MOEDA"},
-}
-
-
 def transform_data(df_bcb, df_frankfurter):
     df = pd.concat([df_bcb, df_frankfurter], ignore_index=True)
+
+    if df.empty:
+        return df
 
     df["data"] = pd.to_datetime(df["data"]).dt.date
     df["codigo_ativo"] = df["codigo_ativo"].astype(str).str.upper()
@@ -21,21 +14,28 @@ def transform_data(df_bcb, df_frankfurter):
 
     df = df.dropna(subset=["data", "codigo_ativo", "fonte", "valor"])
     df = df[df["valor"] > 0]
-    df = df.drop_duplicates(subset=["data", "codigo_ativo", "fonte"])
-    df = df.sort_values(["codigo_ativo", "fonte", "data"])
+
+    df = df.drop_duplicates(
+        subset=["data", "codigo_ativo", "fonte"]
+    )
+
+    df = df.sort_values(
+        ["codigo_ativo", "fonte", "data"]
+    )
 
     df["variacao_diaria"] = (
-        df.groupby(["codigo_ativo", "fonte"])["valor"].pct_change()
+        df.groupby(["codigo_ativo", "fonte"])["valor"]
+        .pct_change()
     )
 
     df["retorno_acumulado"] = (
         df.groupby(["codigo_ativo", "fonte"])["valor"]
-        .transform(lambda x: (x / x.iloc[0]) - 1)
+        .transform(lambda x: (x / x.iloc[0]) - 1 if len(x) > 1 else None)
     )
 
     df["volatilidade_7d"] = (
         df.groupby(["codigo_ativo", "fonte"])["variacao_diaria"]
-        .rolling(7, min_periods=2)
+        .rolling(window=7, min_periods=2)
         .std()
         .reset_index(level=[0, 1], drop=True)
     )
@@ -43,19 +43,14 @@ def transform_data(df_bcb, df_frankfurter):
     return df
 
 
-def create_dim_ativo(df):
-    rows = []
+def create_dim_ativo(df_moedas):
+    df = df_moedas.copy()
 
-    for codigo in df["codigo_ativo"].drop_duplicates():
-        info = ATIVO_INFO.get(codigo, {"nome": codigo, "categoria": "MOEDA"})
+    df["codigo"] = df["codigo"].astype(str).str.upper()
+    df["nome"] = df["nome"].astype(str)
+    df["categoria"] = df["categoria"].astype(str).str.upper()
 
-        rows.append({
-            "codigo": codigo,
-            "nome": info["nome"],
-            "categoria": info["categoria"]
-        })
-
-    return pd.DataFrame(rows)
+    return df[["codigo", "nome", "categoria"]].drop_duplicates()
 
 
 def create_dim_data(df):

@@ -21,12 +21,14 @@ services:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/investimentos
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__WEBSERVER__SECRET_KEY: "minha-chave-secreta-local"
     ports:
       - "8080:8080"
     volumes:
       - ./dags:/opt/airflow/dags
       - ./etl:/opt/airflow/etl
       - ./sql:/opt/airflow/sql
+      - ./data:/opt/airflow/data
       - ./.env:/opt/airflow/.env
     command: >
       bash -c "pip install -r /opt/airflow/sql/../requirements.txt || true;
@@ -43,10 +45,12 @@ services:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/investimentos
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__WEBSERVER__SECRET_KEY: "minha-chave-secreta-local"
     volumes:
       - ./dags:/opt/airflow/dags
       - ./etl:/opt/airflow/etl
       - ./sql:/opt/airflow/sql
+      - ./data:/opt/airflow/data
       - ./.env:/opt/airflow/.env
     command: >
       bash -c "pip install -r /opt/airflow/sql/../requirements.txt || true;

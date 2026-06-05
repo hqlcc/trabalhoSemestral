@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 
-MOEDAS = ["USD", "EUR", "GBP", "JPY", "ARS"]
+MOEDAS_BCB = ["USD", "EUR", "GBP", "JPY"]
 
 
 def extract_bcb():
@@ -12,7 +12,7 @@ def extract_bcb():
 
     rows = []
 
-    for moeda in MOEDAS:
+    for moeda in MOEDAS_BCB:
         url = (
             "https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/"
             f"CotacaoMoedaPeriodo(moeda=@moeda,dataInicial=@dataInicial,dataFinalCotacao=@dataFinalCotacao)"
@@ -42,7 +42,7 @@ def extract_frankfurter():
     end_date = datetime.today().date()
     start_date = end_date - timedelta(days=30)
 
-    moedas = "USD,GBP,JPY,ARS,BRL"
+    moedas = "USD,GBP,JPY,BRL"
 
     url = (
         f"https://api.frankfurter.app/{start_date}..{end_date}"
@@ -58,6 +58,13 @@ def extract_frankfurter():
     rows = []
 
     for data_cotacao, valores in rates.items():
+        rows.append({
+            "data": data_cotacao,
+            "codigo_ativo": "EUR",
+            "fonte": "FRANKFURTER",
+            "valor": 1.0
+        })
+
         for moeda, valor in valores.items():
             rows.append({
                 "data": data_cotacao,
@@ -66,11 +73,8 @@ def extract_frankfurter():
                 "valor": valor
             })
 
-        rows.append({
-            "data": data_cotacao,
-            "codigo_ativo": "EUR",
-            "fonte": "FRANKFURTER",
-            "valor": 1.0
-        })
-
     return pd.DataFrame(rows)
+
+
+def extract_moedas_csv():
+    return pd.read_csv("/opt/airflow/data/moedas.csv")

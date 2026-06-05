@@ -5,7 +5,7 @@ import sys
 
 sys.path.append("/opt/airflow")
 
-from etl.extract import extract_bcb, extract_frankfurter
+from etl.extract import extract_bcb, extract_frankfurter, extract_moedas_csv
 from etl.transform import transform_data, create_dim_ativo, create_dim_data
 from etl.validate import validate_data
 from etl.load import load_dimensions, load_facts
@@ -31,18 +31,28 @@ def task_extract_frankfurter(**context):
     )
 
 
+def task_extract_moedas_csv(**context):
+    df_moedas = extract_moedas_csv()
+    context["ti"].xcom_push(
+        key="df_moedas",
+        value=df_moedas.to_json()
+    )
+
+
 def task_transform(**context):
     import pandas as pd
     from io import StringIO
 
     df_bcb_json = context["ti"].xcom_pull(key="df_bcb")
     df_frankfurter_json = context["ti"].xcom_pull(key="df_frankfurter")
+    df_moedas_json = context["ti"].xcom_pull(key="df_moedas")
 
     df_bcb = pd.read_json(StringIO(df_bcb_json))
     df_frankfurter = pd.read_json(StringIO(df_frankfurter_json))
+    df_moedas = pd.read_json(StringIO(df_moedas_json))
 
     df_final = transform_data(df_bcb, df_frankfurter)
-    df_ativo = create_dim_ativo(df_final)
+    df_ativo = create_dim_ativo(df_moedas)
     df_data = create_dim_data(df_final)
 
     df_final["data"] = df_final["data"].astype(str)
@@ -97,6 +107,11 @@ with DAG(
         python_callable=task_extract_frankfurter
     )
 
+    extract_moedas_csv_task = PythonOperator(
+        task_id="extract_moedas_csv",
+        python_callable=task_extract_moedas_csv
+    )
+
     transform_task = PythonOperator(
         task_id="transform_data",
         python_callable=task_transform
@@ -112,4 +127,8 @@ with DAG(
         python_callable=task_load
     )
 
-    [extract_bcb_task, extract_frankfurter_task] >> transform_task >> validate_task >> load_task
+    [
+        extract_bcb_task,
+        extract_frankfurter_task,
+        extract_moedas_csv_task
+    ] >> transform_task >> validate_task >> load_task
